@@ -1,7 +1,7 @@
 // Guarda la hoja en el móvil para que funcione sin conexión.
 // Sirve primero lo guardado y, si hay red, actualiza en segundo plano.
 // Al publicar una versión nueva, sube el número de CACHE.
-const CACHE = 'grimorio-gerar-v1';
+const CACHE = 'grimorio-gerar-v3';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', (event) => {

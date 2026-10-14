@@ -532,10 +532,8 @@ var $ = function(s){ return document.querySelector(s); };
 
 // ── Estado ──
 function defaults(){
-  return { v:1, lvl:10, sab:20, prep:[], fav:[], presets:[], used:{}, conc:null, cnt:{}, interc:'ok', view:'hoja',
-    custom:[ {id:'c-pena', name:'Pena de Cthulhu', max:1, rech:'largo'},
-             {id:'c-gemas', name:'Gemas y joyas', max:1, rech:'manual'},
-             {id:'c-4usos', name:'Rasgo de 4 usos', max:4, rech:'largo'} ] };
+  return { v:3, lvl:10, sab:20, prep:[], fav:[], presets:[], used:{}, conc:null, cnt:{}, interc:'ok', view:'hoja',
+    custom:[ {id:'c-ritual', name:'Ritual', max:10, rech:'manual'} ] };
 }
 function sanitize(o){
   var d = defaults();
@@ -549,7 +547,7 @@ function sanitize(o){
   if (o.used && typeof o.used === 'object') Object.keys(o.used).forEach(function(k){ var n = +o.used[k]; if (n > 0) d.used[k] = Math.round(n); });
   if (o.cnt && typeof o.cnt === 'object') Object.keys(o.cnt).forEach(function(k){ var n = +o.cnt[k]; if (n > 0) d.cnt[k] = Math.round(n); });
   if (o.conc && BYID[o.conc]) d.conc = o.conc;
-  if (Array.isArray(o.custom)) d.custom = o.custom.filter(function(c){ return c && typeof c.id === 'string'; }).map(function(c){
+  if (o.v >= 2 && Array.isArray(o.custom)) d.custom = o.custom.filter(function(c){ return c && typeof c.id === 'string' && c.id !== 'c-puno'; }).map(function(c){
     return { id:c.id, name:String(c.name || 'Contador').slice(0,40), max:clamp(Math.round(+c.max) || 1, 1, 20),
              rech:(['corto','largo','manual'].indexOf(c.rech) >= 0 ? c.rech : 'largo') }; });
   if (['ok','espera','falla'].indexOf(o.interc) >= 0) d.interc = o.interc;
@@ -583,10 +581,7 @@ function isActive(s, x){ var t = status(s, x); return t === 'dominio' || (t === 
 function summary(s, x){ return typeof s.r === 'function' ? s.r(x) : s.r; }
 function counters(x){
   var list = [];
-  if (x.lvl >= 2) list.push({ id:'canalizar', name:'Canalizar divinidad', max:(x.lvl >= 18 ? 3 : x.lvl >= 6 ? 2 : 1), rech:'corto' });
-  list.push({ id:'pesadillas', name:'Proyectar pesadillas', max:1, rech:'largo' });
-  if (x.lvl >= 6) list.push({ id:'fortalecer', name:'Fortalecer mente', max:Math.max(1, x.mod), rech:'largo' });
-  if (x.lvl >= 17) list.push({ id:'heraldo', name:'Heraldo de la locura', max:1, rech:'largo' });
+  if (x.lvl >= 2) list.push({ id:'canalizar', name:'Canalizar divinidad', alias:'Incluye Puño de Cthulhu', max:(x.lvl >= 18 ? 3 : x.lvl >= 6 ? 2 : 1), rech:'corto' });
   S.custom.forEach(function(c){ list.push({ id:c.id, name:c.name, max:c.max, rech:c.rech, custom:true }); });
   return list;
 }
@@ -649,7 +644,7 @@ function pips(n, used, act, attrs, label){
 }
 function featCounter(c, inner){
   var used = Math.min(S.cnt[c.id] || 0, c.max);
-  return '<div class="feat"><div class="feat-head"><div><h4>' + esc(c.name) + '</h4><div class="rech">' + RECH[c.rech] + ' · quedan ' + (c.max - used) + ' de ' + c.max + '</div></div></div>' +
+  return '<div class="feat"><div class="feat-head"><div><h4>' + esc(c.name) + '</h4><div class="rech">' + (c.alias ? esc(c.alias) + ' · ' : '') + RECH[c.rech] + ' · quedan ' + (c.max - used) + ' de ' + c.max + '</div></div></div>' +
     pips(c.max, used, 'cnt', 'data-c="' + c.id + '"', esc(c.name)) + (inner || '') +
     (c.rech === 'manual' && used ? '<div class="row-actions"><button class="btn small" type="button" data-act="cnt-reset" data-c="' + c.id + '">Recuperar</button></div>' : '') + '</div>';
 }
@@ -664,8 +659,9 @@ function features(x){
     '<li><b>2</b><span>Un coro de chillidos alienígenas: los enemigos que te oigan en el área tienen desventaja en salvaciones de Sabiduría y de concentración hasta el final de tu siguiente turno.</span></li>' +
     '<li><b>3</b><span>Brotan tentáculos: el área es terreno difícil para los enemigos, y quien entre por primera vez en un turno o empiece su turno dentro debe superar una salvación de Destreza o queda apresado. Desaparecen al final de tu siguiente turno.</span></li>' +
     '<li><b>4</b><span>Silencio y oscuridad mágicos llenan el área hasta el final de tu siguiente turno. Tú eres inmune.</span></li></ol></li></ul>');
-  h += featCounter(get('pesadillas'), '<p>Con 10 minutos de concentración sin interrupciones, todas las criaturas dormidas a 36 m tienen pesadillas con visiones del Reino Lejano. Las aberraciones son inmunes. El efecto concreto lo decide el DM.</p>');
-  if (get('fortalecer')) h += featCounter(get('fortalecer'), '<p>Reacción. Cuando tú o una criatura que veas a 9 m hace una salvación de Sabiduría, le sumas ' + sg(x.mod) + '. Lo decides tras ver el dado y antes de saber si la supera.</p>');
+  list.filter(function(c){ return c.custom; }).forEach(function(c){ h += featCounter(c); });
+  h += '<h3 class="lvl">Otros rasgos</h3>';
+  h += '<div class="feat"><h4>Proyectar pesadillas</h4><p>Con 10 minutos de concentración sin interrupciones, todas las criaturas dormidas a 36 m tienen pesadillas con visiones del Reino Lejano. Las aberraciones son inmunes. El efecto concreto lo decide el DM. Una vez por descanso largo.</p></div>';
   if (x.lvl >= 8) h += '<div class="feat"><h4>Golpe divino</h4><p>Una vez en cada uno de tus turnos, al impactar con un ataque de arma, añades ' + (x.lvl >= 14 ? '2d8' : '1d8') + ' de daño psíquico.</p></div>';
   if (x.lvl >= 10) {
     var status_, actions = '';
@@ -675,13 +671,7 @@ function features(x){
     else status_ = 'No funcionó: vuelve tras un descanso largo';
     h += '<div class="feat"><div class="feat-head"><div><h4>Intercesión divina</h4><div class="rech">' + status_ + '</div></div></div><p>Con una acción, pides ayuda a tu dios y describes lo que necesitas. ' + pct + ' El DM decide la forma de la ayuda.</p>' + (actions ? '<div class="row-actions">' + actions + '</div>' : '') + '</div>';
   }
-  if (get('heraldo')) h += featCounter(get('heraldo'), '<p>Acción. Una criatura que elijas a 9 m que pueda verte u oírte hace una salvación de Sabiduría o sufre locura a corto plazo. Las aberraciones la superan siempre.</p>');
   h += '<div class="feat"><h4>Conocimiento eldritch</h4><p>Hablas, lees y escribes habla profunda. Tienes resistencia al daño psíquico.</p></div>';
-  var custom = list.filter(function(c){ return c.custom; });
-  if (custom.length) {
-    h += '<h3 class="lvl">Contadores de su hoja</h3><p class="note">Copiados de las notas de la hoja de papel. Cambia nombre, usos o recarga en Ajustes.</p>';
-    custom.forEach(function(c){ h += featCounter(c); });
-  }
   return h;
 }
 function settings(){
@@ -691,7 +681,7 @@ function settings(){
     '<label class="field" for="set-lvl"><span>Nivel de clérigo</span><input id="set-lvl" type="number" inputmode="numeric" min="1" max="20" value="' + S.lvl + '"></label>' +
     '<label class="field" for="set-sab"><span>Puntuación de Sabiduría</span><input id="set-sab" type="number" inputmode="numeric" min="1" max="30" value="' + S.sab + '"></label>' +
     '<p class="note">Recalcula CD, ataque, conjuros preparados, espacios, trucos y rasgos.</p>' +
-    '<h5>Contadores propios</h5>' +
+    '<h5>Contadores</h5>' +
     S.custom.map(function(c){
       return '<div class="crow"><input aria-label="Nombre del contador" data-cf="name" data-c="' + c.id + '" value="' + esc(c.name) + '" maxlength="40">' +
         '<input aria-label="Usos" type="number" inputmode="numeric" min="1" max="20" data-cf="max" data-c="' + c.id + '" value="' + c.max + '">' +
